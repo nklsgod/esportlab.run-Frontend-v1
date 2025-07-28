@@ -21,7 +21,15 @@ export default function AuthCallbackPage() {
         const errorParam = searchParams.get('error');
 
         if (errorParam) {
-          throw new Error(searchParams.get('error_description') || 'Authentication failed');
+          const errorDescription = searchParams.get('error_description');
+          console.error('OAuth Error:', errorParam, errorDescription);
+          
+          // Check if it's a database error
+          if (errorDescription?.includes('table') && errorDescription?.includes('does not exist')) {
+            throw new Error('Backend database is not properly initialized. Please contact support.');
+          }
+          
+          throw new Error(decodeURIComponent(errorDescription || 'Authentication failed'));
         }
 
         if (!accessToken || !refreshToken || !userStr) {
