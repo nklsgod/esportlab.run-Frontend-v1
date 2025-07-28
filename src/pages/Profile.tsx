@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Settings, Trophy, BarChart3, Save, Edit } from "lucide-react";
 
-export const Profile = () => {
+const Profile = () => {
   // Dummy Data
   const userProfile = {
     username: "MaxGaming",
@@ -292,3 +292,5 @@ export const Profile = () => {
     </div>
   );
 };
+
+export default Profile;

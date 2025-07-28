@@ -45,7 +45,7 @@ export default function AuthCallbackPage() {
         // Store user data (optional)
         localStorage.setItem('user', JSON.stringify(user));
 
-        // Redirect to dashboard
+        // Always redirect to dashboard after successful login
         navigate('/dashboard');
       } catch (err) {
         console.error('Auth callback error:', err);
