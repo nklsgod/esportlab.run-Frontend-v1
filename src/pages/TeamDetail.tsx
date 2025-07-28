@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,28 +33,28 @@ export default function TeamDetailPage() {
     }
   }, [location.pathname]);
 
-  useEffect(() => {
-    const loadTeam = async () => {
-      if (!id) return;
-      
-      try {
-        const response = await apiClient.getTeam(id);
-        setTeam(response.team);
-      } catch (error) {
-        console.error('Failed to load team:', error);
-        toast({
-          title: "Error",
-          description: "Failed to load team details",
-          variant: "destructive",
-        });
-        navigate('/dashboard');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadTeam();
+  const loadTeam = useCallback(async () => {
+    if (!id) return;
+    
+    try {
+      const response = await apiClient.getTeam(id);
+      setTeam(response.team);
+    } catch (error) {
+      console.error('Failed to load team:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load team details",
+        variant: "destructive",
+      });
+      navigate('/dashboard');
+    } finally {
+      setLoading(false);
+    }
   }, [id, navigate, toast]);
+
+  useEffect(() => {
+    loadTeam();
+  }, [loadTeam]);
 
   const handleCopyJoinCode = async (joinCode: string) => {
     try {

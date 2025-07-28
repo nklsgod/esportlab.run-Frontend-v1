@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -44,9 +44,9 @@ export function ScheduleOverview({ teams }: ScheduleOverviewProps) {
 
   useEffect(() => {
     loadAllSchedules();
-  }, [teams]);
+  }, [loadAllSchedules]);
 
-  const loadAllSchedules = async () => {
+  const loadAllSchedules = useCallback(async () => {
     try {
       const schedulePromises = teams.map(async (team) => {
         try {
@@ -90,7 +90,7 @@ export function ScheduleOverview({ teams }: ScheduleOverviewProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [teams, toast]);
 
   const findNextSession = (availability: Availability[]) => {
     const now = new Date();

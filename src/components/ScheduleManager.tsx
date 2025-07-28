@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,9 +44,9 @@ export function ScheduleManager({ team, onUpdate }: ScheduleManagerProps) {
 
   useEffect(() => {
     loadAvailability();
-  }, [team.id]);
+  }, [loadAvailability]);
 
-  const loadAvailability = async () => {
+  const loadAvailability = useCallback(async () => {
     try {
       const response = await apiClient.getAvailability(team.id);
       setAvailability(response.availability);
@@ -60,7 +60,7 @@ export function ScheduleManager({ team, onUpdate }: ScheduleManagerProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [team.id, toast]);
 
   const timeToMinutes = (time: string): number => {
     const [hours, minutes] = time.split(':').map(Number);
@@ -103,7 +103,7 @@ export function ScheduleManager({ team, onUpdate }: ScheduleManagerProps) {
     };
 
     try {
-      const updatedAvailability = [...availability, newAvailabilitySlot as any];
+      const updatedAvailability = [...availability, { ...newAvailabilitySlot, id: `temp-${Date.now()}` }];
       const response = await apiClient.updateAvailability(team.id, updatedAvailability);
       setAvailability(response.availability);
       
