@@ -5,10 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { ScheduleOverview } from '@/components/ScheduleOverview';
 import { apiClient } from '@/lib/api';
 import type { Team, User } from '@/types/api';
-import { Users, Plus, Copy, LogOut, Settings, Calendar } from "lucide-react";
+import { Users, Plus, Copy, LogOut, Settings, Calendar, BarChart3 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 function DashboardPage() {
@@ -159,31 +161,39 @@ function DashboardPage() {
 
         {/* Main Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="sm:flex sm:items-center">
-            <div className="sm:flex-auto">
-              <h2 className="text-2xl font-semibold text-gray-900">Your Teams</h2>
-              <p className="mt-2 text-sm text-gray-700">
-                Manage your esports teams and schedules
-              </p>
+          <Tabs defaultValue="teams" className="w-full">
+            <div className="sm:flex sm:items-center sm:justify-between">
+              <div className="sm:flex-auto">
+                <TabsList className="grid w-full max-w-md grid-cols-2">
+                  <TabsTrigger value="teams" className="flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Teams
+                  </TabsTrigger>
+                  <TabsTrigger value="schedule" className="flex items-center gap-2">
+                    <BarChart3 className="w-4 h-4" />
+                    Schedule
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+              <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none space-x-3">
+                <Button
+                  onClick={() => setShowJoinForm(true)}
+                  variant="outline"
+                >
+                  Join Team
+                </Button>
+                <Button
+                  onClick={() => setShowCreateForm(true)}
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Team
+                </Button>
+              </div>
             </div>
-            <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none space-x-3">
-              <Button
-                onClick={() => setShowJoinForm(true)}
-                variant="outline"
-              >
-                Join Team
-              </Button>
-              <Button
-                onClick={() => setShowCreateForm(true)}
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Create Team
-              </Button>
-            </div>
-          </div>
 
-          {/* Create Team Form */}
-          {showCreateForm && (
+            <TabsContent value="teams" className="mt-8 space-y-8">
+              {/* Create Team Form */}
+              {showCreateForm && (
             <Card className="mt-8">
               <CardHeader>
                 <CardTitle>Create New Team</CardTitle>
@@ -352,6 +362,12 @@ function DashboardPage() {
               </div>
             )}
           </div>
+            </TabsContent>
+
+            <TabsContent value="schedule" className="mt-8">
+              <ScheduleOverview teams={teams} />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </ProtectedRoute>
