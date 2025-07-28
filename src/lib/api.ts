@@ -147,10 +147,21 @@ export class ApiClient {
     return this.request<{ availability: Availability[] }>(`/teams/${teamId}/availability`);
   }
 
-  async updateAvailability(teamId: string, availability: Omit<Availability, 'id'>[]) {
-    return this.request<{ availability: Availability[] }>(`/teams/${teamId}/availability`, {
-      method: 'PUT',
-      body: JSON.stringify({ availability }),
+  async addAvailability(teamId: string, availabilityData: {
+    weekday: 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
+    startTime: number;
+    endTime: number;
+    priority?: number;
+  }) {
+    return this.request<{ availability: Availability }>(`/teams/${teamId}/availability`, {
+      method: 'POST',
+      body: JSON.stringify(availabilityData),
+    });
+  }
+
+  async deleteAvailability(teamId: string, availabilityId: string) {
+    return this.request<void>(`/teams/${teamId}/availability/${availabilityId}`, {
+      method: 'DELETE',
     });
   }
 

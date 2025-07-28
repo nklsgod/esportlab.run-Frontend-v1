@@ -95,7 +95,7 @@ export function ScheduleManager({ team, onUpdate }: ScheduleManagerProps) {
       return;
     }
 
-    const newAvailabilitySlot = {
+    const availabilityData = {
       weekday: newSlot.weekday,
       startTime: startMinutes,
       endTime: endMinutes,
@@ -103,9 +103,10 @@ export function ScheduleManager({ team, onUpdate }: ScheduleManagerProps) {
     };
 
     try {
-      const updatedAvailability = [...availability, { ...newAvailabilitySlot, id: `temp-${Date.now()}` }];
-      const response = await apiClient.updateAvailability(team.id, updatedAvailability);
-      setAvailability(response.availability);
+      const response = await apiClient.addAvailability(team.id, availabilityData);
+      
+      // Reload the availability to get the updated list with IDs
+      await loadAvailability();
       
       setNewSlot({
         weekday: 'MON',
@@ -132,9 +133,10 @@ export function ScheduleManager({ team, onUpdate }: ScheduleManagerProps) {
 
   const handleRemoveSlot = async (slotId: string) => {
     try {
-      const updatedAvailability = availability.filter(slot => slot.id !== slotId);
-      const response = await apiClient.updateAvailability(team.id, updatedAvailability);
-      setAvailability(response.availability);
+      await apiClient.deleteAvailability(team.id, slotId);
+      
+      // Reload the availability to get the updated list
+      await loadAvailability();
 
       toast({
         title: "Success",
@@ -266,15 +268,22 @@ export function ScheduleManager({ team, onUpdate }: ScheduleManagerProps) {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="priority">Priority</Label>
+                  <Label htmlFor="priority">Priority (1-10)</Label>
                   <Select value={newSlot.priority.toString()} onValueChange={(value) => setNewSlot({...newSlot, priority: parseInt(value)})}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="1">High</SelectItem>
-                      <SelectItem value="2">Medium</SelectItem>
-                      <SelectItem value="3">Low</SelectItem>
+                      <SelectItem value="1">1 - Highest</SelectItem>
+                      <SelectItem value="2">2 - High</SelectItem>
+                      <SelectItem value="3">3 - Medium-High</SelectItem>
+                      <SelectItem value="4">4 - Medium</SelectItem>
+                      <SelectItem value="5">5 - Normal</SelectItem>
+                      <SelectItem value="6">6 - Medium-Low</SelectItem>
+                      <SelectItem value="7">7 - Low</SelectItem>
+                      <SelectItem value="8">8 - Lower</SelectItem>
+                      <SelectItem value="9">9 - Very Low</SelectItem>
+                      <SelectItem value="10">10 - Lowest</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -307,18 +316,21 @@ export function ScheduleManager({ team, onUpdate }: ScheduleManagerProps) {
                         <div className="flex flex-wrap gap-2">
                           {dayAvailability.length > 0 ? (
                             dayAvailability.map(slot => (
-                              <Badge key={slot.id} className="flex items-center gap-2">
-                                <Clock className="w-3 h-3" />
-                                {minutesToTime(slot.startTime)} - {minutesToTime(slot.endTime)}
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
-                                  onClick={() => handleRemoveSlot(slot.id)}
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </Button>
-                              </Badge>
+                              <div key={slot.id} className="flex items-center gap-2">
+                                <Badge className="flex items-center gap-2">
+                                  <Clock className="w-3 h-3" />
+                                  {minutesToTime(slot.startTime)} - {minutesToTime(slot.endTime)}
+                                  <span className="text-xs opacity-75">P{slot.priority}</span>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-4 w-4 p-0 hover:bg-destructive hover:text-destructive-foreground"
+                                    onClick={() => handleRemoveSlot(slot.id)}
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </Button>
+                                </Badge>
+                              </div>
                             ))
                           ) : (
                             <span className="text-sm text-muted-foreground">No availability set</span>
