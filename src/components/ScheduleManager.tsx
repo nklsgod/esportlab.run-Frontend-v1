@@ -42,10 +42,6 @@ export function ScheduleManager({ team, onUpdate }: ScheduleManagerProps) {
     priority: 1
   });
 
-  useEffect(() => {
-    loadAvailability();
-  }, [loadAvailability]);
-
   const loadAvailability = useCallback(async () => {
     try {
       const response = await apiClient.getAvailability(team.id);
@@ -61,6 +57,10 @@ export function ScheduleManager({ team, onUpdate }: ScheduleManagerProps) {
       setLoading(false);
     }
   }, [team.id, toast]);
+
+  useEffect(() => {
+    loadAvailability();
+  }, [loadAvailability]);
 
   const timeToMinutes = (time: string): number => {
     const [hours, minutes] = time.split(':').map(Number);

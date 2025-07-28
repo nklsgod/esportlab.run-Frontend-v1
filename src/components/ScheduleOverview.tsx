@@ -42,9 +42,35 @@ export function ScheduleOverview({ teams }: ScheduleOverviewProps) {
   const [scheduleData, setScheduleData] = useState<TeamScheduleData[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadAllSchedules();
-  }, [loadAllSchedules]);
+  const findNextSession = (availability: Availability[]) => {
+    const now = new Date();
+    const currentDay = now.getDay();
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    // Look for sessions in the next 7 days
+    for (let i = 0; i < 7; i++) {
+      const checkDate = addDays(now, i);
+      const checkDay = checkDate.getDay();
+      const weekdayKey = WEEKDAYS.find(day => day.index === checkDay)?.key;
+      
+      if (!weekdayKey) continue;
+
+      const dayAvailability = availability.filter(slot => slot.weekday === weekdayKey);
+      
+      for (const slot of dayAvailability) {
+        // If it's today, only consider future slots
+        if (i === 0 && slot.startTime <= currentMinutes) continue;
+        
+        return {
+          day: weekdayKey,
+          time: minutesToTime(slot.startTime),
+          date: checkDate
+        };
+      }
+    }
+
+    return undefined;
+  };
 
   const loadAllSchedules = useCallback(async () => {
     try {
@@ -92,35 +118,9 @@ export function ScheduleOverview({ teams }: ScheduleOverviewProps) {
     }
   }, [teams, toast]);
 
-  const findNextSession = (availability: Availability[]) => {
-    const now = new Date();
-    const currentDay = now.getDay();
-    const currentMinutes = now.getHours() * 60 + now.getMinutes();
-
-    // Look for sessions in the next 7 days
-    for (let i = 0; i < 7; i++) {
-      const checkDate = addDays(now, i);
-      const checkDay = checkDate.getDay();
-      const weekdayKey = WEEKDAYS.find(day => day.index === checkDay)?.key;
-      
-      if (!weekdayKey) continue;
-
-      const dayAvailability = availability.filter(slot => slot.weekday === weekdayKey);
-      
-      for (const slot of dayAvailability) {
-        // If it's today, only consider future slots
-        if (i === 0 && slot.startTime <= currentMinutes) continue;
-        
-        return {
-          day: weekdayKey,
-          time: minutesToTime(slot.startTime),
-          date: checkDate
-        };
-      }
-    }
-
-    return undefined;
-  };
+  useEffect(() => {
+    loadAllSchedules();
+  }, [loadAllSchedules]);
 
   const minutesToTime = (minutes: number): string => {
     const hours = Math.floor(minutes / 60);
