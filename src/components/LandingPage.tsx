@@ -1,13 +1,15 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Trophy, Users, Calendar, Target, Zap, Shield } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import heroBackground from "@/assets/hero-bg.jpg";
 
 interface LandingPageProps {
-  onLogin: () => void;
+  onLogin?: () => void;
 }
 
 export const LandingPage = ({ onLogin }: LandingPageProps) => {
+  const navigate = useNavigate();
   return (
     <div className="min-h-screen bg-background">
       {/* Hero Section */}
@@ -37,7 +39,7 @@ export const LandingPage = ({ onLogin }: LandingPageProps) => {
             Organisiere dein Team, plane Trainingszeiten und erreiche neue Höhen.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button variant="hero" size="lg" onClick={onLogin}>
+            <Button variant="hero" size="lg" onClick={() => navigate('/login')}>
               Jetzt starten
             </Button>
             <Button variant="outline" size="lg">
@@ -144,7 +146,7 @@ export const LandingPage = ({ onLogin }: LandingPageProps) => {
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             Starte noch heute mit esportLab.run und bringe dein Team an die Spitze
           </p>
-          <Button variant="hero" size="lg" onClick={onLogin}>
+          <Button variant="hero" size="lg" onClick={() => navigate('/login')}>
             Kostenlos anmelden
           </Button>
         </div>
