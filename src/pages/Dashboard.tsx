@@ -1,325 +1,362 @@
+import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar as CalendarIcon, Clock, Users, TrendingUp, Plus, Save, Edit, CheckCircle, XCircle } from "lucide-react";
-import { useState } from "react";
-import { format } from "date-fns";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { apiClient } from '@/lib/api';
+import type { Team, User } from '@/types/api';
+import { Users, Plus, Copy, LogOut, Settings, Calendar } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
-export const Dashboard = () => {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [showAddAvailability, setShowAddAvailability] = useState(false);
-  const [newTimeSlot, setNewTimeSlot] = useState({ start: "", end: "", type: "available" });
+function DashboardPage() {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showJoinForm, setShowJoinForm] = useState(false);
+  const [newTeamName, setNewTeamName] = useState('');
+  const [joinCode, setJoinCode] = useState('');
 
-  // Dummy Data
-  const upcomingTrainings = [
-    { id: 1, date: "2024-01-15", time: "19:00-21:00", type: "Aim Training", participants: 5, maxParticipants: 6 },
-    { id: 2, date: "2024-01-17", time: "20:00-22:00", type: "Team Practice", participants: 6, maxParticipants: 6 },
-    { id: 3, date: "2024-01-19", time: "18:30-20:30", type: "Strategy Review", participants: 4, maxParticipants: 6 },
-    { id: 4, date: "2024-01-21", time: "17:00-19:00", type: "Scrimmage", participants: 3, maxParticipants: 6 },
-    { id: 5, date: "2024-01-23", time: "19:30-21:30", type: "Map Practice", participants: 5, maxParticipants: 6 }
-  ];
+  const loadData = useCallback(async () => {
+    try {
+      const [userResponse, teamsResponse] = await Promise.all([
+        apiClient.getCurrentUser(),
+        apiClient.getTeams()
+      ]);
+      
+      setUser(userResponse.user);
+      setTeams(teamsResponse.teams);
+    } catch (error) {
+      console.error('Failed to load data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load your data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
 
-  const myAvailability = {
-    "2024-01-15": [{ start: "19:00", end: "22:00", type: "available" }],
-    "2024-01-16": [{ start: "18:00", end: "21:00", type: "available" }],
-    "2024-01-17": [{ start: "20:00", end: "22:00", type: "busy", reason: "Arbeit" }],
-    "2024-01-18": [{ start: "19:00", end: "21:00", type: "available" }],
-    "2024-01-19": [{ start: "18:30", end: "20:30", type: "training" }],
-    "2024-01-20": [{ start: "16:00", end: "19:00", type: "available" }],
-    "2024-01-21": [{ start: "17:00", end: "19:00", type: "training" }]
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleCreateTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTeamName.trim()) return;
+
+    try {
+      const response = await apiClient.createTeam(newTeamName);
+      setTeams([...teams, response.team]);
+      setNewTeamName('');
+      setShowCreateForm(false);
+      toast({
+        title: "Success",
+        description: `Team "${response.team.name}" created successfully!`,
+      });
+    } catch (error) {
+      console.error('Failed to create team:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create team",
+        variant: "destructive",
+      });
+    }
   };
 
-  const teamStats = {
-    weeklyHours: 12,
-    targetHours: 15,
-    attendanceRate: 85,
-    avgSkillRating: 2240
+  const handleJoinTeam = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!joinCode.trim()) return;
+
+    try {
+      const response = await apiClient.joinTeam(joinCode);
+      setTeams([...teams, response.team]);
+      setJoinCode('');
+      setShowJoinForm(false);
+      toast({
+        title: "Success",
+        description: `Successfully joined team "${response.team.name}"!`,
+      });
+    } catch (error) {
+      console.error('Failed to join team:', error);
+      toast({
+        title: "Error",
+        description: "Failed to join team. Please check the join code.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const getDayAvailability = (date: Date) => {
-    const dateStr = format(date, "yyyy-MM-dd");
-    return myAvailability[dateStr as keyof typeof myAvailability] || [];
+  const handleCopyJoinCode = async (joinCode: string) => {
+    try {
+      await navigator.clipboard.writeText(joinCode);
+      toast({
+        title: "Copied",
+        description: "Join code copied to clipboard",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to copy join code",
+        variant: "destructive",
+      });
+    }
   };
 
-  const getAvailabilityForDate = (dateStr: string) => {
-    return myAvailability[dateStr as keyof typeof myAvailability] || [];
+  const handleLogout = () => {
+    apiClient.clearTokens();
+    localStorage.removeItem('user');
+    navigate('/login');
   };
 
-  const isTrainingDay = (date: Date) => {
-    const dateStr = format(date, "yyyy-MM-dd");
-    const availability = getDayAvailability(date);
-    return availability.some(slot => slot.type === "training") || 
-           upcomingTrainings.some(training => training.date === dateStr);
-  };
-
-  const isAvailableDay = (date: Date) => {
-    const availability = getDayAvailability(date);
-    return availability.some(slot => slot.type === "available");
-  };
-
-  const addTimeSlot = () => {
-    // In real app, this would update the backend
-    setShowAddAvailability(false);
-    setNewTimeSlot({ start: "", end: "", type: "available" });
-  };
-
-  const joinTraining = (trainingId: number) => {
-    // In real app, this would call the backend
-    console.log("Joining training:", trainingId);
-  };
+  if (loading) {
+    return (
+      <ProtectedRoute>
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </ProtectedRoute>
+    );
+  }
 
   return (
-    <div className="container mx-auto p-6 space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-            Dashboard
-          </h1>
-          <p className="text-muted-foreground">
-            Plane deine Verfügbarkeiten und nimm an Trainings teil
-          </p>
-        </div>
-      </div>
-
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card className="bg-gradient-card border-primary/20 shadow-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Wöchentliche Stunden</CardTitle>
-            <Clock className="h-4 w-4 text-primary" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{teamStats.weeklyHours}h</div>
-            <p className="text-xs text-muted-foreground">
-              von {teamStats.targetHours}h Ziel
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-card border-primary/20 shadow-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Anwesenheit</CardTitle>
-            <Users className="h-4 w-4 text-roles-controller" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{teamStats.attendanceRate}%</div>
-            <p className="text-xs text-muted-foreground">
-              Letzte 4 Wochen
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-card border-primary/20 shadow-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg. Rating</CardTitle>
-            <TrendingUp className="h-4 w-4 text-roles-sentinel" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{teamStats.avgSkillRating}</div>
-            <p className="text-xs text-muted-foreground">
-              Team Durchschnitt
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-card border-primary/20 shadow-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Nächstes Training</CardTitle>
-            <CalendarIcon className="h-4 w-4 text-accent" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">Heute</div>
-            <p className="text-xs text-muted-foreground">
-              19:00 Uhr
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Calendar & Availability */}
-        <Card className="bg-gradient-card border-primary/20 shadow-card">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <CalendarIcon className="w-5 h-5 text-primary" />
-                  Verfügbarkeits-Kalender
-                </CardTitle>
-                <CardDescription>
-                  Trage deine verfügbaren Zeiten ein
-                </CardDescription>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50">
+        {/* Header */}
+        <div className="bg-white shadow">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-6">
+              <div className="flex items-center">
+                <h1 className="text-3xl font-bold text-gray-900">
+                  esportLab.run
+                </h1>
               </div>
-              <Button variant="outline" size="sm" onClick={() => setShowAddAvailability(!showAddAvailability)}>
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <img
+                    src={user?.avatarUrl || '/placeholder.svg'}
+                    alt={user?.username}
+                    className="w-8 h-8 rounded-full"
+                  />
+                  <span className="text-sm font-medium text-gray-700">
+                    {user?.username}
+                  </span>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleLogout}>
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="sm:flex sm:items-center">
+            <div className="sm:flex-auto">
+              <h2 className="text-2xl font-semibold text-gray-900">Your Teams</h2>
+              <p className="mt-2 text-sm text-gray-700">
+                Manage your esports teams and schedules
+              </p>
+            </div>
+            <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none space-x-3">
+              <Button
+                onClick={() => setShowJoinForm(true)}
+                variant="outline"
+              >
+                Join Team
+              </Button>
+              <Button
+                onClick={() => setShowCreateForm(true)}
+              >
                 <Plus className="w-4 h-4 mr-2" />
-                Zeit hinzufügen
+                Create Team
               </Button>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => date && setSelectedDate(date)}
-              className="rounded-md border border-border/50 pointer-events-auto"
-              modifiers={{
-                training: (date) => isTrainingDay(date),
-                available: (date) => isAvailableDay(date)
-              }}
-              modifiersStyles={{
-                training: { 
-                  backgroundColor: 'hsl(var(--primary) / 0.2)',
-                  border: '2px solid hsl(var(--primary))',
-                  borderRadius: '6px'
-                },
-                available: { 
-                  backgroundColor: 'hsl(var(--roles-sentinel) / 0.2)',
-                  border: '1px solid hsl(var(--roles-sentinel))',
-                  borderRadius: '6px'
-                }
-              }}
-            />
+          </div>
 
-            {showAddAvailability && (
-              <div className="p-4 bg-muted/30 rounded-lg border border-border/50 space-y-4">
-                <h4 className="font-medium">Neue Verfügbarkeit für {format(selectedDate, "dd.MM.yyyy")}</h4>
-                <div className="grid grid-cols-2 gap-4">
+          {/* Create Team Form */}
+          {showCreateForm && (
+            <Card className="mt-8">
+              <CardHeader>
+                <CardTitle>Create New Team</CardTitle>
+                <CardDescription>
+                  Create a new team and invite your teammates
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleCreateTeam} className="space-y-6">
                   <div>
-                    <Label htmlFor="startTime">Startzeit</Label>
+                    <Label htmlFor="teamName">Team Name</Label>
                     <Input
-                      id="startTime"
-                      type="time"
-                      value={newTimeSlot.start}
-                      onChange={(e) => setNewTimeSlot({...newTimeSlot, start: e.target.value})}
+                      id="teamName"
+                      type="text"
+                      value={newTeamName}
+                      onChange={(e) => setNewTeamName(e.target.value)}
+                      placeholder="Enter team name"
+                      required
                     />
                   </div>
-                  <div>
-                    <Label htmlFor="endTime">Endzeit</Label>
-                    <Input
-                      id="endTime"
-                      type="time"
-                      value={newTimeSlot.end}
-                      onChange={(e) => setNewTimeSlot({...newTimeSlot, end: e.target.value})}
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="timeType">Status</Label>
-                  <Select value={newTimeSlot.type} onValueChange={(value) => setNewTimeSlot({...newTimeSlot, type: value})}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="available">Verfügbar</SelectItem>
-                      <SelectItem value="busy">Beschäftigt</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex gap-2">
-                  <Button onClick={addTimeSlot} className="flex-1">
-                    <Save className="w-4 h-4 mr-2" />
-                    Speichern
-                  </Button>
-                  <Button variant="outline" onClick={() => setShowAddAvailability(false)}>
-                    Abbrechen
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {/* Selected Day Details */}
-            <div className="space-y-3">
-              <h4 className="font-medium">Zeiten für {format(selectedDate, "dd.MM.yyyy")}</h4>
-              {getDayAvailability(selectedDate).length > 0 ? (
-                getDayAvailability(selectedDate).map((slot, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      {slot.type === "available" && <CheckCircle className="w-4 h-4 text-roles-sentinel" />}
-                      {slot.type === "busy" && <XCircle className="w-4 h-4 text-destructive" />}
-                      {slot.type === "training" && <CalendarIcon className="w-4 h-4 text-primary" />}
-                      <span>{slot.start} - {slot.end}</span>
-                    </div>
-                    <Badge variant={slot.type === "available" ? "default" : slot.type === "training" ? "secondary" : "destructive"}>
-                      {slot.type === "available" ? "Verfügbar" : slot.type === "training" ? "Training" : "Beschäftigt"}
-                    </Badge>
-                  </div>
-                ))
-              ) : (
-                <p className="text-sm text-muted-foreground p-4 text-center bg-muted/30 rounded-lg">
-                  Keine Zeiten eingetragen
-                </p>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Available Trainings */}
-        <Card className="bg-gradient-card border-primary/20 shadow-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-accent" />
-              Verfügbare Trainings
-            </CardTitle>
-            <CardDescription>
-              Nimm an geplanten Trainingseinheiten teil
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {upcomingTrainings.map((training) => {
-              const availability = getAvailabilityForDate(training.date);
-              const isAvailableForTime = availability.some(slot => 
-                slot.type === "available" && 
-                slot.start <= training.time.split('-')[0] && 
-                slot.end >= training.time.split('-')[1]
-              );
-              const isAlreadyJoined = availability.some(slot => slot.type === "training");
-
-              return (
-                <div key={training.id} className="p-4 bg-muted/30 rounded-lg border border-border/50 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h4 className="font-medium">{training.type}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(training.date).toLocaleDateString('de-DE')} • {training.time}
-                      </p>
-                    </div>
-                    <Badge variant="outline" className={`${training.participants === training.maxParticipants ? 'border-destructive text-destructive' : 'border-primary text-primary'}`}>
-                      {training.participants}/{training.maxParticipants}
-                    </Badge>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {isAvailableForTime && <CheckCircle className="w-4 h-4 text-roles-sentinel" />}
-                      {!isAvailableForTime && !isAlreadyJoined && <XCircle className="w-4 h-4 text-destructive" />}
-                      <span className="text-sm text-muted-foreground">
-                        {isAlreadyJoined ? "Bereits beigetreten" : 
-                         isAvailableForTime ? "Du bist verfügbar" : "Du bist nicht verfügbar"}
-                      </span>
-                    </div>
-                    
-                    <Button 
-                      variant={isAlreadyJoined ? "outline" : "gaming"}
-                      size="sm"
-                      disabled={training.participants >= training.maxParticipants || (!isAvailableForTime && !isAlreadyJoined)}
-                      onClick={() => joinTraining(training.id)}
+                  <div className="flex justify-end space-x-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowCreateForm(false)}
                     >
-                      {isAlreadyJoined ? "Beigetreten" : 
-                       training.participants >= training.maxParticipants ? "Voll" : "Beitreten"}
+                      Cancel
+                    </Button>
+                    <Button type="submit">
+                      Create Team
                     </Button>
                   </div>
-                </div>
-              );
-            })}
-          </CardContent>
-        </Card>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Join Team Form */}
+          {showJoinForm && (
+            <Card className="mt-8">
+              <CardHeader>
+                <CardTitle>Join Existing Team</CardTitle>
+                <CardDescription>
+                  Enter a join code to join an existing team
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleJoinTeam} className="space-y-6">
+                  <div>
+                    <Label htmlFor="joinCode">Join Code</Label>
+                    <Input
+                      id="joinCode"
+                      type="text"
+                      value={joinCode}
+                      onChange={(e) => setJoinCode(e.target.value)}
+                      placeholder="Enter join code"
+                      required
+                    />
+                  </div>
+                  <div className="flex justify-end space-x-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowJoinForm(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit">
+                      Join Team
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Teams List */}
+          <div className="mt-8">
+            {teams.length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <Users className="mx-auto h-12 w-12 text-gray-400" />
+                  <h3 className="mt-2 text-lg font-medium text-gray-900">No teams yet</h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Get started by creating your first team or joining an existing one
+                  </p>
+                  <div className="mt-6 space-x-3">
+                    <Button onClick={() => setShowCreateForm(true)}>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Team
+                    </Button>
+                    <Button variant="outline" onClick={() => setShowJoinForm(true)}>
+                      Join Team
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {teams.map((team) => (
+                  <Card
+                    key={team.id}
+                    className="hover:shadow-lg transition-shadow cursor-pointer"
+                    onClick={() => navigate(`/teams/${team.id}`)}
+                  >
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg">{team.name}</CardTitle>
+                        <Badge variant="secondary">
+                          {team.ownerId === user?.id ? 'Owner' : 'Member'}
+                        </Badge>
+                      </div>
+                      <CardDescription>
+                        Created {new Date(team.createdAt).toLocaleDateString()}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-gray-500">Join Code:</span>
+                          <div className="flex items-center space-x-2">
+                            <code className="bg-gray-100 px-2 py-1 rounded text-sm">
+                              {team.joinCode}
+                            </code>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleCopyJoinCode(team.joinCode);
+                              }}
+                            >
+                              <Copy className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                        
+                        <div className="flex justify-between pt-4 border-t">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/teams/${team.id}/schedule`);
+                            }}
+                          >
+                            <Calendar className="w-4 h-4 mr-2" />
+                            Schedule
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/teams/${team.id}/settings`);
+                            }}
+                          >
+                            <Settings className="w-4 h-4 mr-2" />
+                            Settings
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
+    </ProtectedRoute>
   );
-};
+}
+
+export { DashboardPage as Dashboard };
+export default DashboardPage;
